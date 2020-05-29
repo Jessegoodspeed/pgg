@@ -22,13 +22,28 @@ class Player:
             return self.ic
         amount = self.b1 * self.cont_hx[-1] + self.b2 \
                 * (1 - self.disc ** (numOfRounds - len(self.cont_hx) + 2)) \
-                / (1-discount) * avg_prev_contributions
+                / (1- self.disc) * avg_prev_contributions
         self.cont_hx.append(amount)
         return amount
 
     # get contribution hx
     def get_hx(self):
         return self.cont_hx
+
+class RosterIterator:
+    """ Iterator class """
+    def __init__(self, roster):
+        self.r_list = roster._roster
+        self._index = 0
+
+    def __next__(self):
+        """ Returns the next item from roster object's list """
+        if self._index < (len(self.r_list)):
+            result = self.r_list[self._index]
+            self._index += 1
+            return result
+        # End of iteration
+        raise StopIteration
 
 class Roster:
     def __init__(self):
@@ -37,10 +52,15 @@ class Roster:
     def add_player(self, beta1, beta2, discount, initialOffering=5):
         self._roster.append(Player(beta1, beta2, discount, initialOffering))
 
+    def __iter__(self):
+        """Returns the Iterator object """
+        return RosterIterator(self)
+
+
 class PGG_Instance:
     # Number of rounds (default = 10)
     def __init__(self, roster_of_players, numOfRounds=10):
-        self._roster_list = roster_of_players
+        self._roster_list = roster_of_players._roster
         self.totalRounds = numOfRounds
         self.currentRound = 0
         self.avg_contributions = []
@@ -77,13 +97,15 @@ class PGG_Instance:
         params={}
         contributions={}
         for i, player in enumerate(self._roster_list,1):
-            params[f'player {i} beta1'] = [player.b1 for i in self.totalRounds]
-            params[f'player {i} beta2'] = [player.b2 for i in self.totalRounds]
-            params[f'player {i} discount'] = [player.disc for i in \
-                                        self.totalRounds]
-            contributions[f'player {i} contributions'] = player.get_hx()
-        dfp = pd.DataFrame(params, index=list(range(1,11)))
-        dfc = pd.DataFrame(contributions, index=list(range(1,11)))
+            params[f'p{i} beta1'] = [player.b1 for i in
+                                        range(self.totalRounds)]
+            params[f'p{i} beta2'] = [player.b2 for i in
+                                        range(self.totalRounds)]
+            params[f'p{i} discount'] = [player.disc for i in \
+                                        range(self.totalRounds)]
+            contributions[f'p{i} contributions'] = player.get_hx()
+        dfp = pd.DataFrame(params, index=list(range(1,self.totalRounds+1)))
+        dfc = pd.DataFrame(contributions, index=list(range(1,self.totalRounds+1)))
         df = pd.concat([dfp,dfc], axis=1)
-        df['Round #'] = list(range(1,11))
+        df['Round #'] = list(range(1,self.totalRounds+1))
         return df
