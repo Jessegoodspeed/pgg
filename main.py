@@ -20,20 +20,23 @@ Let's run each instance k times, and set k = 1000 - so that we have sufficient d
 '''
 
 import pandas as pd
-from classes import Player, Roster, PGG_Instance
+import classes
 
-k = 1000
+Roster = classes.Roster
+PGG_Instance = classes.PGG_Instance
+
+k = 10
 numOfRounds = 10
 
 k_instances = {}
 k_dfs = {}
 for i in range(k):
     test = Roster()
-    test.add_player(0.3,0.5,0.1)
-    test.add_player(0.4,0.5,0.2)
-    test.add_player(0.5,0.5,0.1)
-    test.add_player(0.6,0.5,0.2)
-    test.add_player(0.7,0.4,0.25)
+    test.add_player(0.3,0.5,1)
+    test.add_player(0.4,0.5,1)
+    test.add_player(0.5,0.5,1)
+    test.add_player(0.6,0.5,1)
+    test.add_player(0.7,0.4,1)
     inst = PGG_Instance(test, numOfRounds)
     inst.initialization()
     while(inst.active_status):
