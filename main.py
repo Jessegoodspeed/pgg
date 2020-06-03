@@ -32,11 +32,11 @@ k_instances = {}
 k_dfs = {}
 for i in range(k):
     test = Roster()
-    test.add_player(0.3,0.5,1)
+    test.add_player(1,0.5,1)
     test.add_player(0.4,0.5,1)
-    test.add_player(0.5,0.5,1)
+    test.add_player(1,0.5,1)
     test.add_player(0.6,0.5,1)
-    test.add_player(0.7,0.4,1)
+    test.add_player(1,0.4,1)
     inst = PGG_Instance(test, numOfRounds)
     inst.initialization()
     while(inst.active_status):
