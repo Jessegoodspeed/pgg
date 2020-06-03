@@ -70,6 +70,9 @@ class TfPlayer(Player):
         # set default value for avg_prev_contributions = 1 to avoid runtime error for initial contributions
         # return value cannot be less than 0 nor greater than 10
         if len(self.cont_hx) is 0:
+            if self.ic > 10:
+                self.cont_hx.append(10)
+                return 10
             self.cont_hx.append(self.ic)
             return self.ic
         amount = self.b1 * self.cont_hx[-1] + self.b2 * self.nghb_avg_hx[-1]
@@ -86,6 +89,9 @@ class DtfPlayer(Player):
         # set default value for avg_prev_contributions = 1 to avoid runtime error for initial contributions
         # return value cannot be less than 0 nor greater than 10
         if len(self.cont_hx) is 0:
+            if self.ic > 10:
+                self.cont_hx.append(10)
+                return 10
             self.cont_hx.append(self.ic)
             return self.ic
         amount = self.b1 * self.cont_hx[-1] + self.b2 \
@@ -116,9 +122,10 @@ class Roster:
     def __init__(self):
         self._roster = []
 
-    def add_player(self, beta1, beta2, discount, type='TF'):
+    def add_player(self, cache, type='TF'):
+        beta1, beta2, discount = cache
         if type is 'TF':
-            self._roster.append(TfPlayer(beta1, beta2, discount))
+            self._roster.append(TfPlayer(beta1, beta2, 1))
         else:
             self._roster.append(DtfPlayer(beta1, beta2, discount))
 

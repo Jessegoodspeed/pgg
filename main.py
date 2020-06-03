@@ -20,7 +20,9 @@ Let's run each instance k times, and set k = 1000 - so that we have sufficient d
 '''
 
 import pandas as pd
+import numpy as np
 import classes
+import random
 
 Roster = classes.Roster
 PGG_Instance = classes.PGG_Instance
@@ -30,13 +32,22 @@ numOfRounds = 10
 
 k_instances = {}
 k_dfs = {}
+
+#beta1: (0,1.25)
+#beta2: (0,1.25)
+#discount: (0,1)
+
+player_types = ['TF', 'DTF']
 for i in range(k):
     test = Roster()
-    test.add_player(1,0.5,1)
-    test.add_player(0.4,0.5,1)
-    test.add_player(1,0.5,1)
-    test.add_player(0.6,0.5,1)
-    test.add_player(1,0.4,1)
+    beta1_dist = np.random.default_rng().uniform(0, 1.25, 5)
+    beta2_dist = np.random.default_rng().uniform(0, 1.25, 5)
+    disc_dist = np.random.default_rng().uniform(0, 1, 5)
+    type_choice = player_types[random.randint(0,1)]
+
+    for (b1,b2,disc) in zip(beta1_dist,beta2_dist,disc_dist):
+        test.add_player((b1,b2,disc), type=type_choice)
+    print(test._roster)
     inst = PGG_Instance(test, numOfRounds)
     inst.initialization()
     while(inst.active_status):
