@@ -39,7 +39,9 @@ class Player(ABC):
         self.disc = discount
         self.cont_hx = list()
         self.nghb_avg_hx = list()
-        self.ic = beta1 * 10
+        self.e_hx = [10]
+        self.ic = beta1 * self.e_hx[-1]
+
 
     def __repr__(self):
         return f'Player({self.b1!r}, {self.b2!r}, {self.disc!r}, \
@@ -61,6 +63,11 @@ class Player(ABC):
         totalNeighContribs = totl_round_contribs - self.cont_hx[-1]
         neighAvg = totalNeighContribs/(rosterSize-1)
         self.nghb_avg_hx.append(neighAvg)
+
+    def payout(self, totl_round_contribs, mfactor, num_of_players):
+        payout_amnt = self.e_hx[-1] - self.cont_hx[-1] + (mfactor \
+                        * (totl_round_contribs)) / num_of_players # TB Continued....
+        self.e_hx.append(payout_amnt)
 
     def get_hx(self):
         return self.cont_hx
@@ -124,11 +131,12 @@ class Roster:
 
 class PGG_Instance:
     # Number of rounds (default = 10)
-    def __init__(self, roster_of_players, numOfRounds=10):
+    def __init__(self, roster_of_players, numOfRounds=10, \
+                multiplicativeFactor=1.2):
         self._roster_list = roster_of_players._roster
         self.totalRounds = numOfRounds
         self.currentRound = 0
-        # self.avg_contributions = []
+        self._m_factor = multiplicativeFactor
         self.active_status = True
 
     def __repr__(self):
@@ -140,11 +148,9 @@ class PGG_Instance:
     def initialization(self):
         self.currentRound = 1
         contribs = []
-        for i in self._roster_list:
-            contribs.append(i.contribute())
-        for i in self._roster_list:
-            allContribs  = sum(contribs)
-            i.computeNeighborAvg(allContribs,len(self._roster_list))
+        contribs = list(self.roster_contribs_iter())
+        self.compute_roster_neigh_avgs(sum(contribs))
+        self.comp_payout(sum(contribs))
 
     def roster_contribs_iter(self):
         """Iterator that iterates roster list and generates player contribution"""
@@ -152,16 +158,22 @@ class PGG_Instance:
             yield i.contribute(self.totalRounds)
 
     def compute_roster_neigh_avgs(self, all_contribs):
-        """Iterator that iterates roster list and generates neighbor avgs"""
+        """For-loop that iterates roster list and computes neighbor avgs"""
         for i in self._roster_list:
             i.computeNeighborAvg(all_contribs,len(self._roster_list))
+
+    def comp_payout(self, all_contribs):
+        for i in self._roster_list:
+            i.payout(all_contribs, self._m_factor, len(self._roster_list))
 
     def next_round(self):
         """Instance method to play a single round"""
         if self.currentRound < self.totalRounds:
             self.currentRound += 1
             contribs = list(self.roster_contribs_iter())
-            self.compute_roster_neigh_avgs(sum(contribs))
+            totl_contribs = sum(contribs)
+            self.compute_roster_neigh_avgs(totl_contribs)
+            self.comp_payout(totl_contribs)
         else:
             self.active_status = False
 
@@ -169,6 +181,7 @@ class PGG_Instance:
     def create_instance_df(self):
         params={}
         contributions={}
+        payoff={}
         for i, player in enumerate(self._roster_list,1):
             params[f'p{i} beta1'] = [player.b1 for i in
                                         range(self.totalRounds)]
@@ -176,7 +189,8 @@ class PGG_Instance:
                                         range(self.totalRounds)]
             params[f'p{i} discount'] = [player.disc for i in \
                                         range(self.totalRounds)]
-            contributions[f'p{i} contributions'] = player.get_hx()
+            contributions[f'p{i} contributions'] = player.cont_hx
+            contributions[f'p{i} e after round'] = player.e_hx[1:]
         dfp = pd.DataFrame(params, index=list(range(1,self.totalRounds+1)))
         dfc = pd.DataFrame(contributions, index=list(range(1,self.totalRounds+1)))
         df = pd.concat([dfp,dfc], axis=1)
