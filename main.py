@@ -1,6 +1,4 @@
-'''
-
-'''
+''' Public Goods Game Simulation '''
 
 import pandas as pd
 import numpy as np
@@ -10,13 +8,13 @@ import random
 Roster = classes.Roster
 PGG_Instance = classes.PGG_Instance
 
-k = 1000
-numOfRounds = 10
+K = 10000  # Number of instances
+NUM_OF_ROUNDS = 10  # Number of rounds per an instance
 k_instances = {}
 k_dfs = {}
-
 player_types = ['TF', 'DTF'] # List of player models
-for i in range(k):
+
+for i in range(K):
     test = Roster()
 
     # Parameters are randomly chosen
@@ -29,20 +27,24 @@ for i in range(k):
     for (b1,b2,disc) in zip(beta1_dist,beta2_dist,disc_dist):
         test.add_player((b1,b2,disc), type=type_choice)
 
-    # Instance is initialized
-    inst = PGG_Instance(test, numOfRounds)
+    inst = PGG_Instance(test, NUM_OF_ROUNDS)
     inst.initialization()
+
+    # Iterate through rest of the ten rounds
     while(inst.active_status):
         inst.next_round()
+
+    # Dataframe manipulation for csv output
     df = inst.create_instance_df()
-    df['instance'] = [i+1 for x in range(numOfRounds)]
+    df['instance'] = [i+1 for x in range(NUM_OF_ROUNDS)]
     k_dfs[f'df_{i}'] = df
     if i is 0:
         continue
     else:
         k_dfs[f'df_0'] = pd.concat([k_dfs[f'df_0'],k_dfs[f'df_{i}']])
 
+    # Logging for runtime progress.
     if i%100 is 0:
         print(f'{i} instances completed!')
 df = k_dfs[f'df_0'].reset_index(drop=True)
-df.to_csv('k_1000.csv')
+df.to_csv(f'K_{K!r}.csv')
