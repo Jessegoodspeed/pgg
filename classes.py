@@ -1,6 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 import pandas as pd
+import random
 
 class Creator(ABC):
     """
@@ -65,6 +66,14 @@ class Player(ABC):
         self.e_hx.append(payout_amnt)
 
 class TfPlayer(Player):
+    def __init__(self, beta1, beta2):
+        self.b1 = beta1
+        self.b2 = beta2
+        self.cont_hx = list()
+        self.nghb_avg_hx = list()
+        self.e_hx = [10]
+        self.ic = beta1 * self.e_hx[-1]
+
     def contribute(self, avg_prev_contributions=1, numOfRounds=10):
         # arguments: round t, prev contribution, average of previous round's contributions
         # set default value for avg_prev_contributions = 1 to avoid runtime error for initial contributions
@@ -103,6 +112,44 @@ class DtfPlayer(Player):
         self.cont_hx.append(amount)
         return amount
 
+class StochPlayer(Player):
+    def __init__(self, beta1, beta2, i_cont):
+        self.b1 = beta1
+        self.b2 = beta2
+        self.cont_hx = list()
+        self.nghb_avg_hx = list()
+        self.e_hx = [10]
+        self.ic = i_cont # random.randrange(0,2) * self.e_hx[-1]
+
+    def contribute(self, avg_prev_contributions=1, numOfRounds=10):
+        if len(self.cont_hx) is 0:
+            self.cont_hx.append(self.ic)
+            return self.ic
+        chance_roll = random.random()
+
+        if chance_roll < self.b1:
+            if self.cont_hx[-1] <= self.e_hx[-1]:
+                cont_amount = self.cont_hx[-1]
+            else:
+                cont_amount = self.e_hx[-1]
+
+        elif self.b1 <= chance_roll < (self.b1 + self.b2):
+            if self.nghb_avg_hx[-1] <= self.e_hx[-1]:
+                cont_amount = self.nghb_avg_hx[-1]
+            else:
+                cont_amount = self.e_hx[-1]
+
+        else:  # Changed model to introduce a 3rd probability -
+               # where contribution amount is uniform RV (0,10)
+            unif_rv_val = random.random() * 10
+            if unif_rv_val <= self.e_hx[-1]:
+                cont_amount = unif_rv_val
+            else:
+                cont_amount = self.e_hx[-1]
+
+        self.cont_hx.append(cont_amount)
+        return cont_amount
+
 class RosterIterator:
     """ Iterator class """
     def __init__(self, roster):
@@ -121,13 +168,20 @@ class RosterIterator:
 class Roster:
     def __init__(self):
         self._roster = []
-
+        self.model_type = None
     def add_player(self, cache, type='TF'):
-        beta1, beta2, discount = cache
         if type is 'TF':
-            self._roster.append(TfPlayer(beta1, beta2, 1))
+            beta1, beta2 = cache
+            self._roster.append(TfPlayer(beta1, beta2))
+            self.model_type = 'TF'
+        elif type is 'STF':
+            beta1, beta2, initial_contribution = cache
+            self._roster.append(StochPlayer(beta1, beta2, initial_contribution))
+            self.model_type = 'STF'
         else:
+            beta1, beta2, discount = cache
             self._roster.append(DtfPlayer(beta1, beta2, discount))
+            self.model_type = 'DTF'
 
     def __iter__(self):
         """Returns the Iterator object """
@@ -139,6 +193,7 @@ class PGG_Instance:
     def __init__(self, roster_of_players, numOfRounds=10, \
                 multiplicativeFactor=1.2):
         self._roster_list = roster_of_players._roster
+        self.type = roster_of_players.model_type
         self.totalRounds = numOfRounds
         self.currentRound = 0
         self._m_factor = multiplicativeFactor
@@ -192,8 +247,9 @@ class PGG_Instance:
                                         range(self.totalRounds)]
             params[f'p{i} beta2'] = [player.b2 for i in
                                         range(self.totalRounds)]
-            params[f'p{i} discount'] = [player.disc for i in \
-                                        range(self.totalRounds)]
+            if self.type is 'DTF':
+                params[f'p{i} discount'] = [player.disc for i in \
+                                            range(self.totalRounds)]
             contributions[f'p{i} contributions'] = player.cont_hx
             contributions[f'p{i} e after round'] = player.e_hx[1:]
         dfp = pd.DataFrame(params, index=list(range(1,self.totalRounds+1)))

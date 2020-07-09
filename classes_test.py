@@ -1,22 +1,21 @@
 # classes_test.py
 from unittest import TestCase, main
-from classes import Player
+import classes
 
 class PlayerTestCase(TestCase):
-    def test_player_init(self):
-        pl1 = Player(1,2,3)
-        pl2 = Player(3,2,1)
-        self.assertEqual(pl1.b2, pl2.b2)
+    def test_stoch_player(self):
+        pl1 = classes.StochPlayer(0.4,0.5)
+        amount = pl1.contribute()
+        self.assertEqual(len(pl1.cont_hx), 1)
+        if amount is 10.0:
+            self.assertEqual(pl1.cont_hx[-1], 10.0)
+        else:
+            self.assertEqual(pl1.cont_hx[-1], 0)
 
     def test_player_contribute(self):
-        pl1 = Player(4,5,6)
+        pl1 = classes.TfPlayer(4,5)
         self.assertEqual(pl1.contribute(3), 5)
 
-    def test_player_get_hx(self):
-        pl1 = Player(7,8,9)
-        pl1.contribute(4)
-        self.assertEqual(len(pl1.get_hx()),1)
-        self.assertEqual(pl1.get_hx()[0],5)
 
 if __name__ == '__main__':
     main()
