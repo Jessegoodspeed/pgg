@@ -165,10 +165,12 @@ class SimpStochPlayer(Player):
             return self.ic
 
         # Code block to handle the uniform option - where player contributes a uniform value
-        if self.a is not 0:
+        if self.a != 0:
             uni_chance_roll = random.random()
             if uni_chance_roll < self.a:
-                cont_amount = np.random.uniform(0,1,1)[0]
+                cont_amount = random.random()
+                if cont_amount > self.e_hx[-1]:
+                    cont_amount = self.e_hx[-1]
                 self.cont_hx.append(cont_amount)
                 return cont_amount
 
@@ -177,17 +179,22 @@ class SimpStochPlayer(Player):
         ex = self.eps * fract_played_one
         y = 1 - fract_played_one
 
-        if self.cont_hx[-1] is 0:  # S0 - case that previous contribution was 0
-            if chance_roll < (1-ex):
+        if self.cont_hx[-1] == 0:  # S0 - case that previous contribution was 0
+            if chance_roll < (1-ex) :
                 cont_amount = 0
             else:
                 cont_amount = 1
-        else:  # S1 - case that previous contribution was 1
+                if cont_amount > self.e_hx[-1]:
+                    cont_amount = self.e_hx[-1]
+        elif self.cont_hx[-1] == 1:  # S1 - case that previous contribution was 1
             if chance_roll < y:
                 cont_amount = 0
             else:
                 cont_amount = 1
-
+                if cont_amount > self.e_hx[-1]:
+                    cont_amount = self.e_hx[-1]
+        else:
+            cont_amount = 0
         self.cont_hx.append(cont_amount)
         return cont_amount
 
@@ -225,7 +232,8 @@ class Roster:
             self.model_type = 'STF'
         elif type is 'SST':
             eps, initial_contribution, alpha = cache
-            self._roster.append(SimpStochPlayer(eps, initial_contribution))
+            self._roster.append(SimpStochPlayer(eps, initial_contribution,
+                                                alpha))
             self.model_type = 'SST'
         else:
             beta1, beta2, discount = cache
