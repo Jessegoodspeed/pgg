@@ -150,6 +150,51 @@ class StochPlayer(Player):
         self.cont_hx.append(cont_amount)
         return cont_amount
 
+class SimpStochPlayer(Player):
+    def __init__(self, eps, i_cont, alpha=0):
+        self.eps = eps
+        self.cont_hx = list()
+        self.nghb_hx = list()
+        self.e_hx = [1]
+        self.ic = i_cont # random.randrange(0,2) * self.e_hx[-1]
+        self.a = alpha
+
+    def contribute(self, numOfRounds=10):
+        if len(self.cont_hx) is 0:
+            self.cont_hx.append(self.ic)
+            return self.ic
+
+        # Code block to handle the uniform option - where player contributes a uniform value
+        if self.a is not 0:
+            uni_chance_roll = random.random()
+            if uni_chance_roll < self.a:
+                cont_amount = np.random.uniform(0,1,1)[0]
+                self.cont_hx.append(cont_amount)
+                return cont_amount
+
+        chance_roll = random.random()
+        fract_played_one = self.nghb_hx[-1]
+        ex = self.eps * fract_played_one
+        y = 1 - fract_played_one
+
+        if self.cont_hx[-1] is 0:  # S0 - case that previous contribution was 0
+            if chance_roll < (1-ex):
+                cont_amount = 0
+            else:
+                cont_amount = 1
+        else:  # S1 - case that previous contribution was 1
+            if chance_roll < y:
+                cont_amount = 0
+            else:
+                cont_amount = 1
+
+        self.cont_hx.append(cont_amount)
+        return cont_amount
+
+    def computeFractionPlayedOne(self, totl_round_contribs, rosterSize=5):
+        fraction = totl_round_contribs/rosterSize
+        self.nghb_hx.append(fraction)
+
 class RosterIterator:
     """ Iterator class """
     def __init__(self, roster):
@@ -178,6 +223,10 @@ class Roster:
             beta1, beta2, initial_contribution = cache
             self._roster.append(StochPlayer(beta1, beta2, initial_contribution))
             self.model_type = 'STF'
+        elif type is 'SST':
+            eps, initial_contribution, alpha = cache
+            self._roster.append(SimpStochPlayer(eps, initial_contribution))
+            self.model_type = 'SST'
         else:
             beta1, beta2, discount = cache
             self._roster.append(DtfPlayer(beta1, beta2, discount))
@@ -207,10 +256,15 @@ class PGG_Instance:
 
     def initialization(self):
         self.currentRound = 1
-        contribs = []
-        contribs = list(self.roster_contribs_iter())
-        self.compute_roster_neigh_avgs(sum(contribs))
-        self.comp_payout(sum(contribs))
+        # contribs = []  # Do I really need this line?
+        if self.type is 'SST':
+            contribs = list(self.roster_contribs_iter())
+            self.compute_fraction_played_one(sum(contribs))
+            self.comp_payout(sum(contribs))
+        else:
+            contribs = list(self.roster_contribs_iter())
+            self.compute_roster_neigh_avgs(sum(contribs))
+            self.comp_payout(sum(contribs))
 
     def roster_contribs_iter(self):
         """Iterator that iterates roster list and generates player contribution"""
@@ -222,6 +276,11 @@ class PGG_Instance:
         for i in self._roster_list:
             i.computeNeighborAvg(all_contribs,len(self._roster_list))
 
+    def compute_fraction_played_one(self, all_contribs):
+        """For-loop that iterates roster list and computes neighbor avgs"""
+        for i in self._roster_list:
+            i.computeFractionPlayedOne(all_contribs,len(self._roster_list))
+
     def comp_payout(self, all_contribs):
         for i in self._roster_list:
             i.payout(all_contribs, self._m_factor, len(self._roster_list))
@@ -232,7 +291,10 @@ class PGG_Instance:
             self.currentRound += 1
             contribs = list(self.roster_contribs_iter())
             totl_contribs = sum(contribs)
-            self.compute_roster_neigh_avgs(totl_contribs)
+            if self.type == 'SST':
+                self.compute_fraction_played_one(totl_contribs)
+            else:
+                self.compute_roster_neigh_avgs(totl_contribs)
             self.comp_payout(totl_contribs)
         else:
             self.active_status = False
@@ -243,17 +305,23 @@ class PGG_Instance:
         contributions={}
         payoff={}
         for i, player in enumerate(self._roster_list,1):
-            params[f'p{i} beta1'] = [player.b1 for i in
+            if self.type is 'SST':
+                params[f'p{i} Epsilon'] = [player.eps for i in
+                                            range(self.totalRounds)]
+                params[f'p{i} Alpha'] = [player.a for i in
+                                            range(self.totalRounds)]
+            else:
+                params[f'p{i}_b1'] = [player.b1 for i in
                                         range(self.totalRounds)]
-            params[f'p{i} beta2'] = [player.b2 for i in
+                params[f'p{i}_b2'] = [player.b2 for i in
                                         range(self.totalRounds)]
             if self.type is 'DTF':
-                params[f'p{i} discount'] = [player.disc for i in \
+                params[f'p{i}_disc'] = [player.disc for i in \
                                             range(self.totalRounds)]
-            contributions[f'p{i} contributions'] = player.cont_hx
-            contributions[f'p{i} e after round'] = player.e_hx[1:]
+            contributions[f'p{i}_cont'] = player.cont_hx
+            contributions[f'new_p{i}_e'] = player.e_hx[1:]
         dfp = pd.DataFrame(params, index=list(range(1,self.totalRounds+1)))
         dfc = pd.DataFrame(contributions, index=list(range(1,self.totalRounds+1)))
         df = pd.concat([dfp,dfc], axis=1)
-        df['Round #'] = list(range(1,self.totalRounds+1))
+        df['Round'] = list(range(1,self.totalRounds+1))
         return df
