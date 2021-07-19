@@ -243,30 +243,38 @@ class Roster:
         self.model_type = None
 
     def add_player(self, cache, type='TF'):
-        if type is 'TF':
+        if type == 'TF':
             beta1, beta2 = cache
             self._roster.append(TfPlayer(beta1, beta2))
             if self.model_type == None:
                 self.model_type = 'TF'
-        elif type is 'STF':
+        elif type == 'STF':
             beta1, beta2, initial_contribution = cache
             self._roster.append(StochPlayer(beta1, beta2, initial_contribution))
             if self.model_type == None:
                 self.model_type = 'STF'
-        elif type is 'SST':
+        elif type == 'SST':
             eps, initial_contribution, alpha = cache
             self._roster.append(SimpStochPlayer(eps, initial_contribution,
                                                 alpha))
             if self.model_type == None:
                 self.model_type = 'SST'
-        elif type is 'FJ':
-            initial_contribution, alpha = cache
-            self._roster.append(FjPlayer(initial_contribution, alpha))
+        elif type == 'FJ':
+            initial_state, alpha = cache  # initial state (aka initial contribution)
+            self._roster.append(FjPlayer(initial_state, alpha))
             if self.model_type == None:
                 self.model_type = 'FJ'
-                self.X_0 = [initial_contribution]
+                self.X_0 = [initial_state]
             else:
-                self.X_0.append(initial_contribution)
+                self.X_0.append(initial_state)
+        elif type == 'FJ2':
+            initial_state, alpha = cache  # initial state (aka initial contribution)
+            self._roster.append(FjPlayer(initial_state, alpha))
+            if self.model_type == None:
+                self.model_type = 'FJ2'
+                self.X_0 = [initial_state]
+            else:
+                self.X_0.append(initial_state)
         else:
             beta1, beta2, discount = cache
             self._roster.append(DtfPlayer(beta1, beta2, discount))
@@ -283,7 +291,7 @@ class PGG_Instance:
                 multiplicativeFactor=1.2):
         self._roster_list = roster_of_players._roster
         self.type = roster_of_players.model_type
-        if self.type == 'FJ':
+        if self.type[:2] == 'FJ':
             # Initialize X_0
             self.X_0 = roster_of_players.X_0
             self.W = self.compute_W()
@@ -339,6 +347,17 @@ class PGG_Instance:
 
             self.roster_contribs_push(self.X_k)
             self.comp_payout(sum(self.X_k))
+        elif self.type == 'FJ2':
+            self.X_k = np.array(copy.deepcopy(self.X_0))
+            outer_prod = np.outer(self.X_k,
+                                    np.array(self.roster_endowment_check()))
+            contributions = np.diagonal(outer_prod)
+            # diff = np.array(self.roster_endowment_check()) - self.X_k
+            # diff[diff > 0] = 0
+            # self.X_k += diff
+
+            self.roster_contribs_push(contributions)
+            self.comp_payout(sum(contributions))
         else:
             contribs = list(self.roster_contribs_iter())
             self.compute_roster_neigh_avgs(sum(contribs))
@@ -390,6 +409,16 @@ class PGG_Instance:
                 self.roster_contribs_push(self.X_k_and_1)
                 totl_contribs = sum(self.X_k_and_1)
                 self.X_k = self.X_k_and_1
+            elif self.type == 'FJ2':
+                self.X_k_and_1 = np.matmul(np.matmul(self.Lambda, self.W), self.X_k) \
+                            + np.matmul(self.Ident_Lambda, self.X_0)
+                outer_prod = np.outer(self.X_k_and_1,
+                                        np.array(self.roster_endowment_check()))
+                contributions = np.diagonal(outer_prod)
+
+                self.roster_contribs_push(contributions)
+                totl_contribs = sum(contributions)
+                self.X_k = self.X_k_and_1
             else:
                 contribs = list(self.roster_contribs_iter())
                 totl_contribs = sum(contribs)
@@ -417,7 +446,7 @@ class PGG_Instance:
                                             range(self.totalRounds)]
                 params[f'p{i} Alpha'] = [player.a for i in
                                             range(self.totalRounds)]
-            elif self.type == 'FJ':
+            elif self.type[:2] == 'FJ':
                 params[f'p{i} Alpha'] = [player.a for i in
                                             range(self.totalRounds)]
             else:

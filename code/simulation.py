@@ -14,7 +14,7 @@ K = 1  # Number of instances
 NUM_OF_ROUNDS = 10  # Number of rounds per an instance
 k_instances = {}
 k_dfs = {}
-player_types = ['TF', 'DTF', 'STF', 'SST', 'FJ'] # List of player models
+player_types = ['TF', 'DTF', 'STF', 'SST', 'FJ', 'FJ2'] # List of player models
 # interval = 4  # Used this variable when doing grid search over beta1 and beta2
 # def run_pgg_sim(EPS,ALPH=0):
 for i in range(K):
@@ -24,13 +24,13 @@ for i in range(K):
     # beta1_dist = np.random.default_rng().uniform(interval/10, (interval+1)/10, 1)
     # beta2_dist = [.2]  # np.random.default_rng().uniform(interval, interval+.1, 1)
     # disc_dist = np.random.default_rng().uniform(interval/10, (interval+1)/10, 1)
-    type_choice = player_types[4]  # player_types[random.randint(0,1)]
+    type_choice = player_types[5]  # player_types[random.randint(0,1)]
 
     # For stochastic player: Beta 1 & Beta 2 - aka PHI and EPSILON, probability
     # of contributing the same as previous round and probability of contributing
     # the mean of opponent's contributions from previous round
     # e = float(sys.argv[1]) # make this a bash input variable
-    alpha = [float(sys.argv[1]),float(sys.argv[2]),float(sys.argv[3]), \
+    alpha = [float(sys.argv[1]), float(sys.argv[2]), float(sys.argv[3]), \
              float(sys.argv[4]),float(sys.argv[5])]
     # sample = np.random.uniform(0,1,5)  # 5 Samples from uniform RV
     # sample = np.random.binomial(1, 0.5, 5)  # 5 samples from a binomial RV
@@ -44,14 +44,14 @@ for i in range(K):
     #     coin_flip = np.random.binomial(1,bin)
     #     initial_contributions = [coin_flip for x in range(5)]  # All players have same ic
     # Fixed initial avg_contributions
-    initial_contributions = [0,0,0,1,1]  # three-1s
+    initial_contributions = [0,1,1,1,1]  # three-1s
     # Game players are initialized
     for num, ic in enumerate(initial_contributions):
         #  For SST player cache has 3 variables - eps, initial contribution,
         #   and alpha. Alpha is 0 to generate a simple stochastic player. To generate
         #   a player with uniform value option, set alpha to the probability of
         #   choosing uniform option for player.
-        game.add_player((ic, alpha[num]), type=type_choice)
+        game.add_player((ic, alpha[num]), type=type_choice) #alpha[num]
 
     # Fixed game players are initialized (set parameters manually)
     # for j in range(5-len(beta1_dist)):
@@ -79,8 +79,8 @@ for i in range(K):
 df = k_dfs[f'df_0'].reset_index(drop=True)
 # Save to csv - naming scheme: K_<num>_<setting description>_<interval?>_
 #  <model-type>.csv
-df.to_csv( f'data/K_{K!r}_{type_choice}_alpha_{alpha!r}_'
-          + f'init_two-1s.csv')
+df.to_csv( f'../data/K_{K!r}_{type_choice}_alpha_{alpha!r}_'
+          + f'init_four-1s.csv')
 
 # data file naming scheme:
 # K: number of instances
