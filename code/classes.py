@@ -68,6 +68,10 @@ class Player(ABC):
         self.e_hx.append(payout_amnt)
 
 class TfPlayer(Player):
+    """
+    Linear Two-Factor model as described by Wunder et al. (2013) in paper 
+    "Empirical Agent Based Models of Cooperation in Public Goods Game".
+    """
     def __init__(self, beta1, beta2):
         self.b1 = beta1
         self.b2 = beta2
@@ -94,6 +98,10 @@ class TfPlayer(Player):
         return amount
 
 class DtfPlayer(Player):
+    """
+    Discounted Two-Factor model as described by Wunder et al. (2013) in paper 
+    "Empirical Agent Based Models of Cooperation in Public Goods Game".
+    """
     # Contribute (and add value to contribution hx) --> int
     def contribute(self, avg_prev_contributions=1, numOfRounds=10):
         # arguments: round t, prev contribution, average of previous round's contributions
@@ -115,6 +123,10 @@ class DtfPlayer(Player):
         return amount
 
 class StochPlayer(Player):
+    """
+    Stochastic model designed to replicate empirical, aggregate data from Wunder et al. (2013) paper 
+    "Empirical Agent Based Models of Cooperation in Public Goods Game".
+    """
     def __init__(self, beta1, beta2, i_cont):
         self.b1 = beta1
         self.b2 = beta2
@@ -153,6 +165,10 @@ class StochPlayer(Player):
         return cont_amount
 
 class SimpStochPlayer(Player):
+    """
+    Simpler stochastic model designed to replicate empirical, aggregate data from Wunder et al. (2013) paper 
+    "Empirical Agent Based Models of Cooperation in Public Goods Game".
+    """
     def __init__(self, eps, i_cont, alpha=0):
         self.eps = eps
         self.cont_hx = list()
@@ -205,6 +221,9 @@ class SimpStochPlayer(Player):
         self.nghb_hx.append(fractions_tuple)
 
 class FjPlayer(Player):
+    """
+    Friedkin-Johnsen model.
+    """
     def __init__(self, i_cont, alpha):
         self.cont_hx = list()
         # self.nghb_hx = list()
@@ -260,6 +279,7 @@ class Roster:
             if self.model_type == None:
                 self.model_type = 'SST'
         elif type == 'FJ':
+            # REF: 'FJ model' subtracts X_k from roster_endowment
             initial_state, alpha = cache  # initial state (aka initial contribution)
             self._roster.append(FjPlayer(initial_state, alpha))
             if self.model_type == None:
@@ -268,6 +288,7 @@ class Roster:
             else:
                 self.X_0.append(initial_state)
         elif type == 'FJ2':
+            # REF: 'FJ2 model' multiplies roster_endowment by X_k
             initial_state, alpha = cache  # initial state (aka initial contribution)
             self._roster.append(FjPlayer(initial_state, alpha))
             if self.model_type == None:
@@ -340,6 +361,7 @@ class PGG_Instance:
             self.submit_fractions(fractions)
             self.comp_payout(sum(contribs))
         elif self.type == 'FJ':
+            # REF: 'FJ model' subtracts X_k from roster_endowment
             self.X_k = np.array(copy.deepcopy(self.X_0))
             diff = np.array(self.roster_endowment_check()) - self.X_k
             diff[diff > 0] = 0
@@ -348,6 +370,7 @@ class PGG_Instance:
             self.roster_contribs_push(self.X_k)
             self.comp_payout(sum(self.X_k))
         elif self.type == 'FJ2':
+            # REF: 'FJ2 model' multiplies roster_endowment by X_k
             self.X_k = np.array(copy.deepcopy(self.X_0))
             outer_prod = np.outer(self.X_k,
                                     np.array(self.roster_endowment_check()))
